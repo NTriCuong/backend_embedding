@@ -16,10 +16,11 @@ def detect_face(image_path):
     # Nếu là ảnh webcam (numpy array)
     else:
         results = model_yolo(source=image_path, show=True)
-
     boxes = results[0].boxes.xyxy.cpu().numpy()# lấy tọa độ của các khuôn mặt được phát hiện
+    
     if boxes.size == 0:  # Kiểm tra nếu không có khuôn mặt nào được phát hiện
         return []  # Trả về danh sách rỗng nếu không có khuôn mặt nào được phát hiện
+    
     # Chuyển đổi tọa độ từ numpy array sang list
     return boxes.tolist() # Trả về danh sách các tọa độ khuôn mặt
 
