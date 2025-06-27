@@ -45,6 +45,8 @@ INSTALLED_APPS = [
     "handle_face",  # Ứng dụng chứa các chức năng xử lý khuôn mặt
     "api_real_time",  
 ]
+# Cấu hình Channels dùng asgi.py
+ASGI_APPLICATION = "backend_embedding.asgi.application"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

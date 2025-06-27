@@ -20,6 +20,9 @@ class WebSocketConsumer(AsyncWebsocketConsumer):#kế thừa từ AsyncWebsocket
     #dự án sẻ có 2 kết nối từ device và từ frontend
     connected_devices = {} # device_id : <WebSocketConsumer>
     connected_frontend = None
+    embedding_db = []  # dùng cache
+
+
     async def connect(self): #khi người dùng kết nối thì sẻ chạy hàm connect
         await self.accept() # chấp nhận kết nối
         query_string = self.scope['query_string'].decode()
@@ -39,7 +42,7 @@ class WebSocketConsumer(AsyncWebsocketConsumer):#kế thừa từ AsyncWebsocket
         WebSocketConsumer.connected_frontend = self
         await self.send(text_data="Kết nối với frontend thành công")
 
-#khi người dùng ngắt kêts nối (ngắt kết nối trước) sẻ chạy vào hàm desconnect
+#khi người dùng ngắt kêt nối (ngắt kết nối trước) sẻ chạy vào hàm desconnect
     async def disconnect(self, close_code):# close_code: mã lỗi khi ngắt kết nối
        if WebSocketConsumer.connected_frontend == self:
             WebSocketConsumer.connected_frontend = None
@@ -48,10 +51,20 @@ class WebSocketConsumer(AsyncWebsocketConsumer):#kế thừa từ AsyncWebsocket
             if socket == self:
                 del WebSocketConsumer.connected_devices[device_id]
                 break
+    
+    @classmethod
+    def load_db (cls):
+         # get db
+        if not cls.embedding_db: #nếu rỗng
+            data_DB = get_all_faces()
+            for face in data_DB:
+                detected_face = crop_face(face.image_url)['image'] # cắt khuôn mặt từ ảnh
+                cls.embedding_db.append(embedding_face(detected_face[0]))
+            
 #async def receive(self, text_data=None, bytes_data=None):
-    # Hàm này sẽ được gọi khi có dữ liệu gửi đến từ client
     async def receive(self, data):
       #xử lý dữ liệu
+        WebSocketConsumer.load_db()
       #giải mã data nhận được từ device
         data_device = json.loads(data) # data là JSON chứa thông tin về ảnh device_id và image_base
         device_id = data_device.get("device_id")
@@ -62,19 +75,12 @@ class WebSocketConsumer(AsyncWebsocketConsumer):#kế thừa từ AsyncWebsocket
             image = Image.open(BytesIO(image_bytes)) #khôi phục hiện trạng của ảnh gốc .jpg 
         
         #xử lý nhận diện 
-            # get db
-            data_DB = get_all_faces()
-            data_embedding_db = [] # list các vector khuôn mặt trích xuât từ db
-            for face in data_DB:
-                detected_face = crop_face(face.image_url)['image'] # cắt khuôn mặt từ ảnh
-                data_embedding_db.append(embedding_face(detected_face[0]))
-            
             #xử lý khuôn mặt từ ảnh vừa nhận được từ device
             warning = ''
             detected_faces = crop_face(image) # cắt khuôn mặt từ ảnh
             for face in detected_faces:
                 face_embedding = embedding_face(face['image'])
-                for face_db in data_embedding_db:
+                for face_db in WebSocketConsumer.embedding_db:
                     #toạ độ
                     x1 = face['boder_box']['x1']
                     y1 = face['boder_box']['y1']
