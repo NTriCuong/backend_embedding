@@ -8,6 +8,9 @@ from handle_face.services.crop import crop_face
 from handle_face.services.embedd import embedding_face
 from handle_face.services.equa import compare_embeddings
 import cv2
+import numpy as np
+from asgiref.sync import sync_to_async
+
 
 #      self.scope = {
     #     'type': 'websocket',
@@ -53,27 +56,31 @@ class WebSocketConsumer(AsyncWebsocketConsumer):#kế thừa từ AsyncWebsocket
                 break
     
     @classmethod
-    def load_db (cls):
-         # get db
-        if not cls.embedding_db: #nếu rỗng
-            data_DB = get_all_faces()
+    async def load_db(cls):
+        if not cls.embedding_db:
+            data_DB = await sync_to_async(get_all_faces)()
             for face in data_DB:
-                detected_face = crop_face(face.image_url)['image'] # cắt khuôn mặt từ ảnh
-                cls.embedding_db.append(embedding_face(detected_face[0]))
-            
+                try:
+                    detected_face = crop_face(face.image_url)[0]['image']
+                    cls.embedding_db.append(embedding_face(detected_face))
+                except Exception as e:
+                    print("Lỗi xử lý ảnh DB:", e)
+
 #async def receive(self, text_data=None, bytes_data=None):
-    async def receive(self, data):
+    async def receive(self, text_data=None, bytes_data=None):
       #xử lý dữ liệu
-        WebSocketConsumer.load_db()
+        await WebSocketConsumer.load_db()
       #giải mã data nhận được từ device
-        data_device = json.loads(data) # data là JSON chứa thông tin về ảnh device_id và image_base
+        data_device = json.loads(text_data) # data là JSON chứa thông tin về ảnh device_id và image_base
         device_id = data_device.get("device_id")
         device_img = data_device.get("image_base")
         # Giải mã ảnh
         try:
-            image_bytes = base64.b64decode(device_img)
-            image = Image.open(BytesIO(image_bytes)) #khôi phục hiện trạng của ảnh gốc .jpg 
-        
+            image_bytes = base64.b64decode(device_img)  
+            image_pil = Image.open(BytesIO(image_bytes)).convert("RGB")
+            image = cv2.cvtColor(np.array(image_pil), cv2.COLOR_RGB2BGR)
+            #resize lại ảnh tránh ảnh quá lớn không thể gửi qua websocket
+            image = cv2.resize(image, (416, 416))
         #xử lý nhận diện 
             #xử lý khuôn mặt từ ảnh vừa nhận được từ device
             warning = ''
@@ -88,30 +95,32 @@ class WebSocketConsumer(AsyncWebsocketConsumer):#kế thừa từ AsyncWebsocket
                     y2 = face['boder_box']['y2']
                     if compare_embeddings(face_embedding, face_db):#nhận diện thành công
                         #vẽ border trên ảnh gốc nhận được từ device
-                        cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                        cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2) 
                         warning = ''
+                        print("✅")
                         break
                     else:
                         #nếu không nhận diện được thì vẽ border màu đỏ
-                        cv2.rectangle(image, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                        cv2.rectangle(image, (x1, y1), (x2, y2), (0, 0, 255), 2) 
+                        print("❌")
                         warning = 'cảnh báo có người lạ'
 
-            
             # Encode ảnh từ numpy array sang base64 string
             _, buffer = cv2.imencode('.jpg', image)
             image_base64 = base64.b64encode(buffer).decode()
-            
+            print("tets ảnh1 : ",image)
             result = {
                 "device_id": device_id,
                 "image": image_base64,
                 "warning": warning
             }
             # Gửi kết quả cho frontend
-
-            await WebSocketConsumer.connected_frontend.send(
-                text_data=json.dumps(result)
-            )
+            if WebSocketConsumer.connected_frontend:
+                await WebSocketConsumer.connected_frontend.send(
+                    text_data=json.dumps(result)
+                )
         except Exception as e:
-            await WebSocketConsumer.connected_frontend.send(
-                text_data=json.dumps({"error": str("Lỗi xử lý ảnh: " + str(e))})
-            )
+            if WebSocketConsumer.connected_frontend:
+                await WebSocketConsumer.connected_frontend.send(
+                    text_data=json.dumps({"error": str("Lỗi xử lý ảnh: " + str(e))})
+                )

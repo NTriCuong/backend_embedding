@@ -12,10 +12,10 @@ def detect_face(image_path):
     model_yolo= get_model_yolo()  # Lấy mô hình YOLO
     results = []
     if isinstance(image_path, str):
-        results = model_yolo(image_path, show=True)
+        results = model_yolo(image_path, show=False)
     # Nếu là ảnh webcam (numpy array)
     else:
-        results = model_yolo(source=image_path, show=True)
+        results = model_yolo(source=image_path, show=False)
     boxes = results[0].boxes.xyxy.cpu().numpy()# lấy tọa độ của các khuôn mặt được phát hiện
     
     if boxes.size == 0:  # Kiểm tra nếu không có khuôn mặt nào được phát hiện

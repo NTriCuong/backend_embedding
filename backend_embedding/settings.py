@@ -26,7 +26,13 @@ SECRET_KEY = "django-insecure-(^viu@galva!7+*)=4e2%g^d@w%$r-^*)p)q3jwzaff=__*v(t
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '172.20.10.5',  # Thêm IP tĩnh
+    '*',  # Cho phép tất cả các host (không an toàn cho môi trường sản xuất)
+]
+
 
 
 # Application definition

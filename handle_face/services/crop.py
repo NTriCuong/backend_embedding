@@ -15,6 +15,9 @@ def crop_face(image_path):
 
     # Cắt các khuôn mặt dựa vào toạ độ
     for box in boxes:
+        if len(box) < 4:
+            print(f"⚠️ Box không hợp lệ (len={len(box)}):", box)
+            continue  # bỏ qua box không đủ thông tin
         x1, y1, x2, y2 = map(int, box)
         face_image = image[y1:y2, x1:x2]
         faces.append({

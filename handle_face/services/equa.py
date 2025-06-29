@@ -1,7 +1,7 @@
 from typing import Final
 import numpy as np
 
-THRESHOLD: Final = 0.95
+THRESHOLD: Final = 0.80
 
 def cosine_similarity(vec1, vec2):
     if np.linalg.norm(vec1) == 0 or np.linalg.norm(vec2) == 0:
