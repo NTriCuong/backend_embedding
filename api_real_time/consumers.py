@@ -108,7 +108,6 @@ class WebSocketConsumer(AsyncWebsocketConsumer):#kế thừa từ AsyncWebsocket
             # Encode ảnh từ numpy array sang base64 string
             _, buffer = cv2.imencode('.jpg', image)
             image_base64 = base64.b64encode(buffer).decode()
-            print("tets ảnh1 : ",image)
             result = {
                 "device_id": device_id,
                 "image": image_base64,
